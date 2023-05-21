@@ -1,0 +1,18 @@
+{
+    "error": false,
+    "category": "Pun",
+    "type": "twopart",
+    "setup": "A grocery store cashier asked if I would like my milk in a bag.",
+    "delivery": "I told her \"No, thanks. The carton works fine\".",
+    "flags": {
+        "nsfw": false,
+        "religious": false,
+        "political": false,
+        "racist": false,
+        "sexist": false,
+        "explicit": false
+    },
+    "id": 171,
+    "safe": true,
+    "lang": "en"
+}

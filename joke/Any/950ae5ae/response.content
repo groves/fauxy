@@ -1,9 +1,9 @@
 {
     "error": false,
-    "category": "Programming",
+    "category": "Pun",
     "type": "twopart",
-    "setup": "Why is Linux safe?",
-    "delivery": "Hackers peak through Windows only.",
+    "setup": "How much did your chimney cost?",
+    "delivery": "Nothing, it was on the house.",
     "flags": {
         "nsfw": false,
         "religious": false,
@@ -12,7 +12,7 @@
         "sexist": false,
         "explicit": false
     },
+    "id": 231,
     "safe": true,
-    "id": 260,
     "lang": "en"
 }

@@ -1,4 +1,6 @@
 import json
+import os
+from typing import Optional
 from anyio import Path
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask
@@ -6,13 +8,34 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Mount, Route
 
+from record import KeyMaker, make_key_hash, path_and_query_key
 
-async def replay(in_req: Request):
-    rec_dir = (await Path.cwd()) / in_req.url.path[1:]
-    if not await rec_dir.exists():
-        return Response(f"No recording at {rec_dir}", status_code=424)
+
+class Library:
+    def __init__(self, key_maker: KeyMaker, base_dir: Optional[Path] = None):
+        self.key_maker = key_maker
+        self.base_dir = base_dir
+
+    async def find(self, req: Request):
+        key = self.key_maker(req)
+        _, hash = make_key_hash(key)
+        if self.base_dir is None:
+            self.base_dir = await Path.cwd()
+        for dirpath, dirnames, filenames in os.walk(self.base_dir):
+            if hash in dirnames:
+                return Path(os.path.join(dirpath, hash))
+        return None
+
+
+library = Library(path_and_query_key)
+
+
+async def replay(req: Request):
+    rec_dir = await library.find(req)
+    if rec_dir is None:
+        return Response(f"No recording for {req.url.path}", status_code=424)
     rec_meta = rec_dir / "meta.json"
-    rec_content = rec_dir / "content"
+    rec_content = rec_dir / "response.content"
     if not await rec_meta.exists():
         return Response(f"No meta.json in {rec_dir}", status_code=424)
     if not await rec_content.exists():
