@@ -1,0 +1,18 @@
+{
+    "error": false,
+    "category": "Programming",
+    "type": "twopart",
+    "setup": "Why is Linux safe?",
+    "delivery": "Hackers peak through Windows only.",
+    "flags": {
+        "nsfw": false,
+        "religious": false,
+        "political": false,
+        "racist": false,
+        "sexist": false,
+        "explicit": false
+    },
+    "safe": true,
+    "id": 260,
+    "lang": "en"
+}
