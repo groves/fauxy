@@ -14,7 +14,7 @@ from anyio import Path
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask, BackgroundTasks
 from starlette.requests import Request
-from starlette.responses import JSONResponse, StreamingResponse
+from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Mount, Route
 from httpx import AsyncClient, Headers
 from hashlib import blake2b
@@ -25,19 +25,36 @@ client = AsyncClient(base_url="https://v2.jokeapi.dev")
 JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
 
 
+HeaderProcessor: TypeAlias = Callable[[Headers], None]
+ResponseProcessor: TypeAlias = Callable[[Response], None]
+
+
 class Recording:
-    def __init__(self, rec_dir: Path, key: bytes):
+    def __init__(
+        self,
+        rec_dir: Path,
+        key: bytes,
+        header_processors: list[HeaderProcessor],
+        response_processors: list[ResponseProcessor],
+    ):
         self.rec_dir = rec_dir
         self.key = key
+        self.header_processors = header_processors
+        self.response_processors = response_processors
 
     async def tee(self, iter: AsyncIterator[bytes]):
         rec_content = self.rec_dir / "response.content"
+        self._content = io.BytesIO() if self.response_processors else None
+        appender = self._content.write if self._content else lambda x: None
         async with await rec_content.open(mode="wb") as f:
             async for b in iter:
                 await f.write(b)
+                appender(b)
                 yield b
 
     async def save(self, response):
+        for processor in self.header_processors:
+            processor(response.headers)
         rec_meta = self.rec_dir / "meta.json"
         meta = {
             "status": response.status_code,
@@ -61,10 +78,30 @@ def make_key_hash(key: JSON) -> Tuple[bytes, str]:
     return key_bytes, hash.hexdigest()
 
 
+def strip_headers(*names) -> HeaderProcessor:
+    def stripper(headers):
+        for name in names:
+            del headers[name]
+
+    return stripper
+
+
 class Recorder:
-    def __init__(self, key_maker: KeyMaker, base_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        key_maker: KeyMaker,
+        header_processors: Optional[list[HeaderProcessor]] = None,
+        response_processors: Optional[list[Callable[[Response], None]]] = None,
+        base_dir: Optional[Path] = None,
+        disable_default_header_processors: Optional[bool] = False,
+    ):
         self.base_dir = base_dir
         self.key_maker = key_maker
+        self.response_processors = response_processors if response_processors else []
+        self.header_processors = (
+            [strip_headers("date")] if not disable_default_header_processors else []
+        )
+        self.header_processors.extend(header_processors if header_processors else [])
 
     async def create(self, req: Request) -> Recording:
         if self.base_dir is None:
@@ -73,7 +110,9 @@ class Recorder:
         key_bytes, hash = make_key_hash(key)
         rec_dir = self.base_dir / req.url.path[1:] / hash
         await rec_dir.mkdir(parents=True, exist_ok=True)
-        return Recording(rec_dir, key_bytes)
+        return Recording(
+            rec_dir, key_bytes, self.header_processors, self.response_processors
+        )
 
 
 def path_key(req: Request) -> JSON:
@@ -84,7 +123,19 @@ def path_and_query_key(req: Request) -> JSON:
     return {"path": req.url.path, "safe": "safe-mode" in req.query_params}
 
 
-recorder = Recorder(path_and_query_key)
+recorder = Recorder(
+    path_and_query_key,
+    header_processors=[
+        strip_headers(
+            "content-length",
+            "cf-ray",
+            "retry-after",
+            "ratelimit-remaining",
+            "ratelimit-reset",
+            "report-to",
+        )
+    ],
+)
 
 
 async def record(in_req: Request):

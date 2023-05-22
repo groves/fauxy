@@ -1,9 +1,8 @@
 {
     "error": false,
     "category": "Pun",
-    "type": "twopart",
-    "setup": "How much did your chimney cost?",
-    "delivery": "Nothing, it was on the house.",
+    "type": "single",
+    "joke": "I was struggling to figure out how lightning works, but then it struck me.",
     "flags": {
         "nsfw": false,
         "religious": false,
@@ -12,7 +11,7 @@
         "sexist": false,
         "explicit": false
     },
-    "id": 231,
+    "id": 220,
     "safe": true,
     "lang": "en"
 }
