@@ -72,9 +72,13 @@ def make_key_hash(key: JSON) -> Tuple[bytes, str]:
 
 
 def strip_headers(*names) -> HeaderProcessor:
-    def stripper(headers):
+    def stripper(headers: Headers):
         for name in names:
-            del headers[name]
+            try:
+                del headers[name]
+            except KeyError:
+                # We're only trying to remove the header, we don't care if it's already not there
+                pass
 
     return stripper
 
