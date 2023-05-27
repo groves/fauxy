@@ -24,10 +24,13 @@ class Library:
                 return Path(os.path.join(dirpath, hash))
         return None
 
-    async def replay(self, req: Request):
+    async def replay(self, req: Request) -> Response:
         rec_dir = await self.find(req)
         if rec_dir is None:
             return Response(f"No recording for {req.url.path}", status_code=424)
+        return await self.serve(rec_dir)
+
+    async def serve(self, rec_dir: Path) -> Response:
         rec_meta = rec_dir / "meta.json"
         rec_content = rec_dir / "response.content"
         if not await rec_meta.exists():

@@ -1,6 +1,7 @@
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.routing import Route
+from fauxy import ProxyOnce
 
 from fauxy.record import JSON, Recorder, strip_headers
 from fauxy.replay import Library
@@ -37,3 +38,5 @@ replay = Starlette(
         Route("/{path:path}", library.replay),
     ],
 )
+proxy = ProxyOnce(recorder, library)
+proxy_once = Starlette(debug=True, routes=[Route("/{path:path}", proxy.serve)])
