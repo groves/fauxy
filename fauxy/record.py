@@ -15,13 +15,10 @@ from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from httpx import AsyncClient, Headers
 from hashlib import blake2b
-
-
-JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
+from fauxy import JSON, KeyMaker
 
 
 HeaderProcessor: TypeAlias = Callable[[Headers], None]
-KeyMaker: TypeAlias = Callable[[Request], JSON]
 ResponseProcessor: TypeAlias = Callable[[Response], None]
 
 

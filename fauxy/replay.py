@@ -5,7 +5,8 @@ from anyio import Path
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 
-from record import KeyMaker, make_key_hash
+from fauxy import KeyMaker
+from fauxy.record import make_key_hash
 
 
 class Library:

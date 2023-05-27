@@ -2,8 +2,8 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.routing import Route
 
-from record import JSON, Recorder, strip_headers
-from replay import Library
+from fauxy.record import JSON, Recorder, strip_headers
+from fauxy.replay import Library
 
 
 def path_and_query_key(req: Request) -> JSON:
