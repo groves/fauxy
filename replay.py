@@ -2,13 +2,10 @@ import json
 import os
 from typing import Optional
 from anyio import Path
-from starlette.applications import Starlette
-from starlette.background import BackgroundTask
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response, StreamingResponse
-from starlette.routing import Mount, Route
+from starlette.responses import Response, StreamingResponse
 
-from record import KeyMaker, make_key_hash, path_and_query_key
+from record import KeyMaker, make_key_hash
 
 
 class Library:
@@ -26,30 +23,18 @@ class Library:
                 return Path(os.path.join(dirpath, hash))
         return None
 
+    async def replay(self, req: Request):
+        rec_dir = await self.find(req)
+        if rec_dir is None:
+            return Response(f"No recording for {req.url.path}", status_code=424)
+        rec_meta = rec_dir / "meta.json"
+        rec_content = rec_dir / "response.content"
+        if not await rec_meta.exists():
+            return Response(f"No meta.json in {rec_dir}", status_code=424)
+        if not await rec_content.exists():
+            return Response(f"No content in {rec_dir}", status_code=424)
 
-library = Library(path_and_query_key)
-
-
-async def replay(req: Request):
-    rec_dir = await library.find(req)
-    if rec_dir is None:
-        return Response(f"No recording for {req.url.path}", status_code=424)
-    rec_meta = rec_dir / "meta.json"
-    rec_content = rec_dir / "response.content"
-    if not await rec_meta.exists():
-        return Response(f"No meta.json in {rec_dir}", status_code=424)
-    if not await rec_content.exists():
-        return Response(f"No content in {rec_dir}", status_code=424)
-
-    meta = json.loads(await (await rec_meta.open("r")).read())
-    return StreamingResponse(
-        await rec_content.open("rb"), meta["status"], meta["headers"]
-    )
-
-
-app = Starlette(
-    debug=True,
-    routes=[
-        Route("/{path:path}", replay),
-    ],
-)
+        meta = json.loads(await (await rec_meta.open("r")).read())
+        return StreamingResponse(
+            await rec_content.open("rb"), meta["status"], meta["headers"]
+        )

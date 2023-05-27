@@ -3,7 +3,6 @@ import json
 import os
 from typing import (
     Any,
-    AsyncIterable,
     AsyncIterator,
     Callable,
     Optional,
@@ -11,21 +10,18 @@ from typing import (
     TypeAlias,
 )
 from anyio import Path
-from starlette.applications import Starlette
 from starlette.background import BackgroundTask, BackgroundTasks
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response, StreamingResponse
-from starlette.routing import Mount, Route
+from starlette.responses import Response, StreamingResponse
 from httpx import AsyncClient, Headers
 from hashlib import blake2b
 
-
-client = AsyncClient(base_url="https://v2.jokeapi.dev")
 
 JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
 
 
 HeaderProcessor: TypeAlias = Callable[[Headers], None]
+KeyMaker: TypeAlias = Callable[[Request], JSON]
 ResponseProcessor: TypeAlias = Callable[[Response], None]
 
 
@@ -67,9 +63,6 @@ class Recording:
             await f.write(self.key)
 
 
-KeyMaker: TypeAlias = Callable[[Request], JSON]
-
-
 def make_key_hash(key: JSON) -> Tuple[bytes, str]:
     key_bytes = json.dumps(key, indent=2).encode()
 
@@ -89,12 +82,14 @@ def strip_headers(*names) -> HeaderProcessor:
 class Recorder:
     def __init__(
         self,
+        base_url: str,
         key_maker: KeyMaker,
         header_processors: Optional[list[HeaderProcessor]] = None,
         response_processors: Optional[list[Callable[[Response], None]]] = None,
         base_dir: Optional[Path] = None,
         disable_default_header_processors: Optional[bool] = False,
     ):
+        self.client = AsyncClient(base_url=base_url)
         self.base_dir = base_dir
         self.key_maker = key_maker
         self.response_processors = response_processors if response_processors else []
@@ -114,63 +109,31 @@ class Recorder:
             rec_dir, key_bytes, self.header_processors, self.response_processors
         )
 
-
-def path_key(req: Request) -> JSON:
-    return {"path": req.url.path}
-
-
-def path_and_query_key(req: Request) -> JSON:
-    return {"path": req.url.path, "safe": "safe-mode" in req.query_params}
-
-
-recorder = Recorder(
-    path_and_query_key,
-    header_processors=[
-        strip_headers(
-            "content-length",
-            "cf-ray",
-            "retry-after",
-            "ratelimit-remaining",
-            "ratelimit-reset",
-            "report-to",
+    async def record(self, in_req: Request):
+        headers = {**in_req.headers}
+        # Delete the incoming host header so httpx will fill in the destination host in build_request
+        del headers["host"]
+        # Build a request for the same method and path
+        proxy_req = self.client.build_request(
+            in_req.method,
+            in_req.url.path,
+            headers=headers,
+            params=in_req.query_params,
         )
-    ],
-)
 
+        rec = await self.create(in_req)
 
-async def record(in_req: Request):
-    headers = {**in_req.headers}
-    # Delete the incoming host header so httpx will fill in the destination host in build_request
-    del headers["host"]
-    # Build a request for the same method and path
-    proxy_req = client.build_request(
-        in_req.method,
-        in_req.url.path,
-        headers=headers,
-        params=in_req.query_params,
-    )
+        # Send the new request and get back the headers but leave the body for streaming
+        resp = await self.client.send(proxy_req, stream=True)
 
-    rec = await recorder.create(in_req)
-
-    # Send the new request and get back the headers but leave the body for streaming
-    resp = await client.send(proxy_req, stream=True)
-
-    # Return a response that streams the body from the request into it, sending back the status
-    # code and headers from the upstream response
-    return StreamingResponse(
-        rec.tee(resp.aiter_bytes()),
-        resp.status_code,
-        resp.headers,
-        # Close the upstream reader once we're done streaming the response
-        background=BackgroundTasks(
-            [BackgroundTask(resp.aclose), BackgroundTask(rec.save, resp)]
-        ),
-    )
-
-
-app = Starlette(
-    debug=True,
-    routes=[
-        Route("/{path:path}", record),
-    ],
-)
+        # Return a response that streams the body from the request into it, sending back the status
+        # code and headers from the upstream response
+        return StreamingResponse(
+            rec.tee(resp.aiter_bytes()),
+            resp.status_code,
+            resp.headers,
+            # Close the upstream reader once we're done streaming the response
+            background=BackgroundTasks(
+                [BackgroundTask(resp.aclose), BackgroundTask(rec.save, resp)]
+            ),
+        )
