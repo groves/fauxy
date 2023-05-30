@@ -38,9 +38,9 @@ class Recording:
 
 
 class Library:
-    def __init__(self, base_dir: Path, key_maker: KeyMaker):
+    def __init__(self, base_dir: Path | str, key_maker: KeyMaker):
         self.key_maker = key_maker
-        self.base_dir = base_dir
+        self.base_dir = base_dir if isinstance(base_dir, Path) else Path(base_dir)
 
     async def _make_key_hash(self, req: Request):
         key = self.key_maker(req)

@@ -41,7 +41,7 @@ def replay(library_dir: Path, key_maker: KeyMaker) -> Route:
 
 def proxy(
     base_url: str,
-    library_dir: Path,
+    library_dir: Path | str,
     key_maker: KeyMaker,
     path: str = "/{_:path}",
     header_processors: list[HeaderProcessor] | None = None,
