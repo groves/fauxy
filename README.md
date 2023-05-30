@@ -45,4 +45,5 @@ If you include the requested path in the key JSON, the hash will be determined b
 * Optionally record requests
 * TUI for viewing requests and responses
 * Hosting multiple reloading proxies on separate ports from a single parent
-* Content-adressed response content deduplication
+* Content-adressed response deduplication
+* Running in-process via httpx calling the ASGI app rather than standing up a separate server
