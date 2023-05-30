@@ -1,10 +1,11 @@
 [tool.poetry]
 name = "fauxy"
-version = "0.0.1"
+version = "0.0.2"
 description = "Faux responses from proxying"
 authors = ["Charlie Groves <c@sevorg.org>"]
 license = "Apache-2.0"
 readme = "README.md"
+repository = "https://github.com/groves/fauxy"
 
 [tool.poetry.dependencies]
 python = "^3.10"

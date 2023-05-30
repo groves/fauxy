@@ -4,7 +4,7 @@ From then on, it can return the recorded response whenever it sees the same requ
 
 # Running
 Fauxy can be run by any ASGI server.
-[example.py](example.py) runs fauxy using [uvicorn](https://www.uvicorn.org/).
+[example.py](https://github.com/groves/fauxy/blob/main/example.py) runs fauxy using [uvicorn](https://www.uvicorn.org/).
 If you've installed fauxy, you can run it with `python example.py`.
 
 # Matching requests
@@ -39,3 +39,10 @@ When looking for a recording matching a request, fauxy produces the hash, walks 
 While the request path is part of the created directory structure, it doesn't constrain matching.
 As long as the hash matches, fauxy will return a response.
 If you include the requested path in the key JSON, the hash will be determined by the path, but if you don't, it won't affect it.
+
+# Todo
+* Processing responses before saving
+* Optionally record requests
+* TUI for viewing requests and responses
+* Hosting multiple reloading proxies on separate ports from a single parent
+* Content-adressed response content deduplication
